@@ -1,13 +1,20 @@
-name: example-workflow
-on: [push]
+name: CI
+on:
+  push:
+    branches: [ main ]
 jobs:
-  production-deploy:
-    if: github.repository == 'octo-org/octo-repo-prod'
+  container-test-job:
     runs-on: ubuntu-latest
+    container:
+      image: node:18
+      env:
+        NODE_ENV: development
+      ports:
+        - 80
+      volumes:
+        - my_docker_volume:/volume_mount
+      options: --cpus 1
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '14'
-      - run: npm install -g bats
+      - name: Check for dockerenv file
+        run: (ls /.dockerenv && echo Found dockerenv) || (echo No dockerenv)
 
