@@ -1,13 +1,13 @@
-name: First Workflow
-on: workflow_dispatch
+name: example-workflow
+on: [push]
 jobs:
-  first-job:
+  production-deploy:
+    if: github.repository == 'octo-org/octo-repo-prod'
     runs-on: ubuntu-latest
     steps:
-      - name: Print greeting
-        run: echo "Hello World"
-      - name: Print goodbye
-        run: |
-            echo "Done-Bye"
-            echo "First output"
-            echo "Second output"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '14'
+      - run: npm install -g bats
+
