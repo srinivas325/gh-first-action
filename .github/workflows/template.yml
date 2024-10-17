@@ -82,3 +82,5 @@ jobs:
           echo "Running release job for branch: ${{ inputs.branch }}"
           # Add your release logic here
           echo "Release job completed."
+
+          
