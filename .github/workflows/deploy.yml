@@ -3,11 +3,14 @@ name: Deploy Workflow
 on:
   push:
     branches:
-      - 'feature/*'
-      - 'teams/*'
-      - 'snapshot/*'
-      - 'develop/*'  # Include develop branches
-      - 'main'        # Include main branch
+      - 'teams/*'        # Allow teams branches
+      - 'test/*'         # Allow test branches
+      - 'test1/*'        # Allow test1 branches
+      - 'test2/*'        # Allow test2 snapshot branches
+      - 'test3/*'        # Allow test3 snapshot branches
+      - 'test4/*'        # Allow test4 snapshot branches
+      - 'develop/*'      # Include develop branches
+      - 'main'           # Include main branch
 
 jobs:
   call-template:
@@ -15,4 +18,4 @@ jobs:
     with:
       branch: ${{ github.ref }}
       branch_type: ${{ github.ref }}
-      allowed_branch_types: 'feature,teams,snapshot,develop'  # Pass the branch types as a comma-separated string
+      allowed_branch_types: 'feature:teams,test,test1,snapshot:test2,test3,test4,develop'  # Descriptive format
