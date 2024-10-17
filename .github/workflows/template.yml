@@ -23,22 +23,19 @@ jobs:
           echo "Branch type being checked: ${{ inputs.branch_type }}"
           echo "Allowed branch types: ${{ inputs.allowed_branch_types }}"
 
-          # Split the allowed_branch_types string into an array
           IFS=',' read -r -a branch_types_array <<< "${{ inputs.allowed_branch_types }}"
-
-          # Initialize variables
           current_branch="${{ inputs.branch_type }}"
           allowed=false
           branch_type_name=""
 
-          # Check if the current branch matches any allowed branch types
           for type in "${branch_types_array[@]}"; do
             IFS=':' read -r type_name patterns <<< "$type"
             IFS=',' read -r -a pattern_array <<< "$patterns"
             for pattern in "${pattern_array[@]}"; do
               echo "Checking pattern: $pattern against branch: $current_branch"
-              # Allow for wildcard matching
-              if [[ "$current_branch" == "refs/heads/$pattern" ]] || [[ "$pattern" == "develop/*" && "$current_branch" == refs/heads/develop/* ]]; then
+              if [[ "$current_branch" == "refs/heads/$pattern" ]] || 
+                 [[ "$pattern" == "develop/*" && "$current_branch" == refs/heads/develop/* ]] ||
+                 [[ "$pattern" == "main" && "$current_branch" == "refs/heads/main" ]]; then
                 allowed=true
                 branch_type_name="$type_name"
                 break 2
@@ -48,7 +45,6 @@ jobs:
 
           if [[ "$allowed" == true ]]; then
             echo "Current branch type is allowed: $current_branch ($branch_type_name)"
-            echo "Build completed."
           else
             echo "Current branch type is not allowed: $current_branch"
             exit 1
