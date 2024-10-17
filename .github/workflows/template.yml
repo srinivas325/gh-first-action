@@ -37,7 +37,8 @@ jobs:
             IFS=',' read -r -a pattern_array <<< "$patterns"
             for pattern in "${pattern_array[@]}"; do
               echo "Checking pattern: $pattern against branch: $current_branch"
-              if [[ "$current_branch" == "refs/heads/$pattern"* ]]; then
+              # Allow for wildcard matching
+              if [[ "$current_branch" == "refs/heads/$pattern" ]] || [[ "$pattern" == "develop/*" && "$current_branch" == refs/heads/develop/* ]]; then
                 allowed=true
                 branch_type_name="$type_name"
                 break 2
