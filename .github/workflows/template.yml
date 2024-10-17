@@ -18,7 +18,7 @@ jobs:
       - name: Build
         run: |
           echo "Building from branch: ${{ inputs.branch }}"
-          if startsWith(inputs.branch_type, 'refs/heads/feature/'); then
+          if [[ "${{ inputs.branch_type }}" == refs/heads/feature/* ]]; then
             echo "Build for feature branch"
           else
             echo "Build for snapshot branch"
