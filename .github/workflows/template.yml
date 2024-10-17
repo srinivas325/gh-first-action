@@ -67,8 +67,8 @@ jobs:
     needs: 
       - build_job
       - snapshot_job
-    # RC job should run only for develop branches
-    if: startsWith(inputs.branch_type, 'refs/heads/develop/')
+    # Allow RC job to run for main branch as well
+    if: startsWith(inputs.branch_type, 'refs/heads/develop/') || startsWith(inputs.branch_type, 'refs/heads/main')
     steps:
       - name: Release Candidate Job
         run: |
@@ -81,7 +81,7 @@ jobs:
       - build_job
       - snapshot_job
       - rc_job
-    # Release job should run only for main branch
+    # Release job should run for main branch
     if: startsWith(inputs.branch_type, 'refs/heads/main')
     steps:
       - name: Release Job
