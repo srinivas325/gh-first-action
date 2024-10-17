@@ -4,10 +4,11 @@ on:
   push:
     branches:
       - 'feature/*'
-      - 'develop/*'
+      - 'snapshot/*'
 
 jobs:
-  call-deploy:
+  call-template:
     uses: ./.github/workflows/template.yml
     with:
       branch: ${{ github.ref }}
+      branch_type: ${{ github.ref == 'refs/heads/feature/' && 'feature' || github.ref == 'refs/heads/snapshot/' && 'snapshot' || 'unknown' }}

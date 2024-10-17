@@ -6,25 +6,31 @@ on:
       branch:
         required: true
         type: string
+      branch_type:
+        required: true
+        type: string
 
 jobs:
-  feature_job:
-    if: startsWith(github.ref, 'refs/heads/feature/')
+  build_job:
     runs-on: ubuntu-latest
+    if: ${{ inputs.branch_type == 'feature' || inputs.branch_type == 'snapshot' }}
     steps:
-      - name: Deploy Feature Branch
-        run: ${{ inputs.branch }}"
+      - name: Build
+        run: |
+          echo "Building from branch: ${{ inputs.branch }}"
+          if [[ "${{ inputs.branch_type }}" == "feature" ]]; then
+            echo "Build for feature branch"
+          else
+            echo "Build for snapshot branch"
+          fi
+          echo "Build completed."
 
-  develop_job:
-    if: startsWith(github.ref, 'refs/heads/develop/')
+  snapshot_job:
     runs-on: ubuntu-latest
+    if: ${{ inputs.branch_type == 'snapshot' }}
     steps:
-      - name: Deploy Develop Branch
-        run: ${{ inputs.branch }}"
-
-  rc_job:
-    if: startsWith(github.ref, 'refs/heads/rc/')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy Release Candidate Branch
-        run: ${{ inputs.branch }}"
+      - name: Create Snapshot
+        run: |
+          echo "Creating snapshot from branch: ${{ inputs.branch }}"
+          # Add your snapshot logic here
+          echo "Snapshot created."
