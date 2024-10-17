@@ -54,7 +54,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: 
       - build_job
-    if: startsWith(inputs.branch_type, 'refs/heads/snapshot/') || startsWith(inputs.branch_type, 'refs/heads/develop/')
+    # Allow snapshot jobs to run for main branch as well
+    if: startsWith(inputs.branch_type, 'refs/heads/snapshot/') || startsWith(inputs.branch_type, 'refs/heads/develop/') || startsWith(inputs.branch_type, 'refs/heads/main')
     steps:
       - name: Create Snapshot
         run: |
@@ -66,6 +67,7 @@ jobs:
     needs: 
       - build_job
       - snapshot_job
+    # RC job should run only for develop branches
     if: startsWith(inputs.branch_type, 'refs/heads/develop/')
     steps:
       - name: Release Candidate Job
@@ -79,6 +81,7 @@ jobs:
       - build_job
       - snapshot_job
       - rc_job
+    # Release job should run only for main branch
     if: startsWith(inputs.branch_type, 'refs/heads/main')
     steps:
       - name: Release Job
