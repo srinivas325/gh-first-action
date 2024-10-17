@@ -46,8 +46,6 @@ jobs:
 
   snapshot_job:
     runs-on: ubuntu-latest
-    needs:
-        - build_job
     if: startsWith(inputs.branch_type, 'refs/heads/snapshot/') || startsWith(inputs.branch_type, 'refs/heads/develop/')
     steps:
       - name: Create Snapshot
@@ -58,9 +56,6 @@ jobs:
 
   rc_job:
     runs-on: ubuntu-latest
-    needs:
-        - build_job
-        - snapshot_job
     if: startsWith(inputs.branch_type, 'refs/heads/develop/')
     steps:
       - name: Release Candidate Job
@@ -68,3 +63,13 @@ jobs:
           echo "Running RC job for branch: ${{ inputs.branch }}"
           # Add your release candidate logic here
           echo "Release candidate job completed."
+
+  release_job:
+    runs-on: ubuntu-latest
+    if: startsWith(inputs.branch_type, 'refs/heads/main')
+    steps:
+      - name: Release Job
+        run: |
+          echo "Running release job for branch: ${{ inputs.branch }}"
+          # Add your release logic here
+          echo "Release job completed."
