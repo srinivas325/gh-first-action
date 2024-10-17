@@ -22,7 +22,7 @@ jobs:
           echo "Building from branch: ${{ inputs.branch }}"
           echo "Branch type being checked: ${{ inputs.branch_type }}"
           echo "Allowed branch types: ${{ inputs.allowed_branch_types }}"
-          
+
           # Split the allowed_branch_types string into an array
           IFS=',' read -r -a branch_types_array <<< "${{ inputs.allowed_branch_types }}"
           
@@ -38,7 +38,7 @@ jobs:
             IFS=',' read -r -a pattern_array <<< "$patterns"
             for pattern in "${pattern_array[@]}"; do
               echo "Checking pattern: $pattern against branch: $current_branch"
-              if [[ "$current_branch" == "refs/heads/$pattern/"* ]]; then
+              if [[ "$current_branch" == "refs/heads/$pattern"* ]]; then
                 allowed=true
                 branch_type_name="$type_name"  # Capture the type name
                 break 2  # Break out of both loops
