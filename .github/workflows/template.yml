@@ -31,25 +31,28 @@ jobs:
           allowed=false
           branch_type_name=""
 
-          # Check if the current branch matches any allowed branch types
-          for type in "${branch_types_array[@]}"; do
-            # Separate type name from patterns
-            IFS=':' read -r type_name patterns <<< "$type"
-            IFS=',' read -r -a pattern_array <<< "$patterns"
-            for pattern in "${pattern_array[@]}"; do
-              echo "Checking pattern: $pattern against branch: $current_branch"
-              # Allow for wildcard matching with prefix
-              if [[ "$current_branch" == "refs/heads/$pattern"* ]] || [[ "$current_branch" == "refs/heads/develop/"* ]]; then
-                allowed=true
-                branch_type_name="$type_name"  # Capture the type name
-                break 2  # Break out of both loops
-              fi
+          # Special case for main branch
+          if [[ "$current_branch" == "refs/heads/main" ]]; then
+            allowed=true
+            branch_type_name="release"  # Set type name for logging
+          else
+            # Check if the current branch matches any allowed branch types
+            for type in "${branch_types_array[@]}"; do
+              IFS=':' read -r type_name patterns <<< "$type"
+              IFS=',' read -r -a pattern_array <<< "$patterns"
+              for pattern in "${pattern_array[@]}"; do
+                echo "Checking pattern: $pattern against branch: $current_branch"
+                if [[ "$current_branch" == "refs/heads/$pattern"* ]]; then
+                  allowed=true
+                  branch_type_name="$type_name"
+                  break 2
+                fi
+              done
             done
-          done
+          fi
 
           if [[ "$allowed" == true ]]; then
             echo "Current branch type is allowed: $current_branch ($branch_type_name)"
-            # Add your build logic here
             echo "Build completed."
           else
             echo "Current branch type is not allowed: $current_branch"
@@ -65,7 +68,6 @@ jobs:
       - name: Create Snapshot
         run: |
           echo "Creating snapshot from branch: ${{ inputs.branch }}"
-          # Add your snapshot logic here
           echo "Snapshot created."
 
   rc_job:
@@ -78,7 +80,6 @@ jobs:
       - name: Release Candidate Job
         run: |
           echo "Running RC job for branch: ${{ inputs.branch }}"
-          # Add your release candidate logic here
           echo "Release candidate job completed."
 
   release_job:
@@ -92,5 +93,4 @@ jobs:
       - name: Release Job
         run: |
           echo "Running release job for branch: ${{ inputs.branch }}"
-          # Add your release logic here
           echo "Release job completed."
