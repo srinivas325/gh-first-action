@@ -18,4 +18,4 @@ jobs:
     with:
       branch: ${{ github.ref }}
       branch_type: ${{ github.ref }}
-      allowed_branch_types: 'feature:teams,test,test1,snapshot:test2,test3,test4,develop'  # Descriptive format
+      allowed_branch_types: 'feature:teams,test,test1,snapshot:test2,test3,test4,develop,release:main'  # Descriptive format
