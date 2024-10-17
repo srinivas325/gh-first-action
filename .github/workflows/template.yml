@@ -9,25 +9,43 @@ on:
       branch_type:
         required: true
         type: string
+      allowed_branch_types:
+        required: true
+        type: string
 
 jobs:
   build_job:
     runs-on: ubuntu-latest
-    if: startsWith(inputs.branch_type, 'refs/heads/feature/') || startsWith(inputs.branch_type, 'refs/heads/snapshot/')
     steps:
       - name: Build
         run: |
           echo "Building from branch: ${{ inputs.branch }}"
-          if [[ "${{ inputs.branch_type }}" == refs/heads/feature/* ]]; then
-            echo "Build for feature branch"
+          
+          # Split the allowed_branch_types string into an array
+          IFS=',' read -r -a branch_types_array <<< "${{ inputs.allowed_branch_types }}"
+          
+          # Check if the current branch type is in the allowed list
+          current_branch="${{ inputs.branch_type }}"
+          allowed=false
+
+          for type in "${branch_types_array[@]}"; do
+            if [[ "$current_branch" == "refs/heads/$type/"* ]]; then
+              allowed=true
+              break
+            fi
+          done
+
+          if [[ "$allowed" == true ]]; then
+            echo "Current branch type is allowed: $current_branch"
+            # Add your build logic here
+            echo "Build completed."
           else
-            echo "Build for snapshot branch"
+            echo "Current branch type is not allowed: $current_branch"
+            exit 1
           fi
-          echo "Build completed."
 
   snapshot_job:
     runs-on: ubuntu-latest
-    needs: build_job
     if: startsWith(inputs.branch_type, 'refs/heads/snapshot/')
     steps:
       - name: Create Snapshot

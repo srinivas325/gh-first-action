@@ -12,4 +12,3 @@ jobs:
     with:
       branch: ${{ github.ref }}
       branch_type: ${{ github.ref }}
-      allowed_branch_types: 'feature,snapshot'  # Pass the branch types as a comma-separated string
