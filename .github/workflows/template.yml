@@ -13,12 +13,12 @@ on:
 jobs:
   build_job:
     runs-on: ubuntu-latest
-    if: ${{ inputs.branch_type == 'feature' || inputs.branch_type == 'snapshot' }}
+    if: startsWith(inputs.branch_type, 'refs/heads/feature/') || startsWith(inputs.branch_type, 'refs/heads/snapshot/')
     steps:
       - name: Build
         run: |
           echo "Building from branch: ${{ inputs.branch }}"
-          if [[ "${{ inputs.branch_type }}" == "feature" ]]; then
+          if startsWith(inputs.branch_type, 'refs/heads/feature/'); then
             echo "Build for feature branch"
           else
             echo "Build for snapshot branch"
@@ -27,7 +27,7 @@ jobs:
 
   snapshot_job:
     runs-on: ubuntu-latest
-    if: ${{ inputs.branch_type == 'snapshot' }}
+    if: startsWith(inputs.branch_type, 'refs/heads/snapshot/')
     steps:
       - name: Create Snapshot
         run: |
