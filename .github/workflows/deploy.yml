@@ -1,0 +1,18 @@
+name: Deploy Workflow
+
+on:
+  push:
+    branches:
+      - 'feature/*'
+      - 'teams/*'
+      - 'snapshot/*'
+      - 'develop/*'  # Include develop branches
+      - 'main'        # Include main branch
+
+jobs:
+  call-template:
+    uses: ./.github/workflows/template.yml
+    with:
+      branch: ${{ github.ref }}
+      branch_type: ${{ github.ref }}
+      allowed_branch_types: 'feature,teams,snapshot,develop'  # Pass the branch types as a comma-separated string

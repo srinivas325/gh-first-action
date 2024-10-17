@@ -1,0 +1,14 @@
+name: Deploy Workflow
+
+on:
+  push:
+    branches:
+      - 'feature/*'
+      - 'snapshot/*'
+
+jobs:
+  call-template:
+    uses: ./.github/workflows/template.yml
+    with:
+      branch: ${{ github.ref }}
+      branch_type: ${{ github.ref }}
