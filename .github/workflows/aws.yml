@@ -7,10 +7,10 @@ on:
       - development
       - feature/**
       - release/**
-  pull_request:
-    branches:
-      - main
-      - development
+#   pull_request:
+#     branches:
+#       - main
+#       - development
 
 jobs:
   build:
@@ -42,7 +42,7 @@ jobs:
           echo "Running tests..."
           # Replace with actual test command, e.g., npm test, pytest, etc.
 
-          
+
   release:
     runs-on: ubuntu-latest
     needs: test
