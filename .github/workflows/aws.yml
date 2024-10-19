@@ -7,10 +7,10 @@ on:
       - development
       - feature/**
       - release/**
-#   pull_request:
-#     branches:
-#       - main
-#       - development
+  pull_request:
+    branches:
+      - main
+      - development
 
 jobs:
   build:
@@ -18,11 +18,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      
+
       - name: Build the project
         run: |
           echo "Building the project..."
-          # Replace with actual build command, e.g., npm build, mvn package, etc.
+          # Replace with actual build command
+          echo "Build completed!" > build.log
+          mkdir -p artifacts
+          cp build.log artifacts/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: artifacts/
 
   scan:
     runs-on: ubuntu-latest
@@ -31,35 +40,54 @@ jobs:
       - name: Code scanning
         run: |
           echo "Scanning the code..."
-          # Replace with actual scan command, e.g., SonarQube, ESLint, etc.
+          # Replace with actual scan command
 
   test:
     runs-on: ubuntu-latest
     needs: scan
+    strategy:
+      matrix:
+        branch: [development, main, feature]  # Testing different branches in parallel
     steps:
       - name: Run tests
         run: |
-          echo "Running tests..."
-          # Replace with actual test command, e.g., npm test, pytest, etc.
+          echo "Running tests for branch: ${{ matrix.branch }}"
+          # Conditional test based on branch name
+          if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
+            echo "Running development tests..."
+            # Replace with development test command
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "Running production tests..."
+            # Replace with production test command
+          else
+            echo "Running feature tests..."
+            # Replace with feature branch test command
+          fi
 
   release:
     runs-on: ubuntu-latest
     needs: test
+    if: github.ref != 'refs/heads/feature/*'  # Skip release for feature branches
     steps:
       - name: Release build
         run: |
           echo "Creating release..."
-          # Replace with actual release command, e.g., creating a Docker image, publishing to a registry, etc.
+          # Generate a version tag based on the commit message
+          TAG=$(echo "${{ github.event.head_commit.message }}" | grep -oP '#\K\d+')
+          echo "Version: v${TAG}"
+          # Replace with actual release command
 
   deploy_staging:
     runs-on: ubuntu-latest
     needs: release
-    if: github.ref == 'refs/heads/development'
+    if: startsWith(github.ref, 'refs/heads/feature/') || github.ref == 'refs/heads/development'
     steps:
       - name: Deploy to Staging
         run: |
           echo "Deploying to Staging environment..."
-          # Replace with actual deployment command, e.g., AWS CLI commands, Terraform, etc.
+          # Use environment-specific variables if needed
+          echo "Environment: ${{ secrets.STAGING_ENV_VARIABLE }}"
+          # Replace with actual deployment command
 
   deploy_production:
     runs-on: ubuntu-latest
@@ -70,13 +98,28 @@ jobs:
       - name: Deploy to Production
         run: |
           echo "Deploying to Production environment..."
-          # Replace with actual deployment command, e.g., AWS CLI commands, Terraform, etc.
+          echo "Environment: ${{ secrets.PRODUCTION_ENV_VARIABLE }}"
+          # Replace with actual deployment command
 
   notify:
     runs-on: ubuntu-latest
     needs: [deploy_staging, deploy_production]
     steps:
-      - name: Notify completion
+      - name: Notify stakeholders
         run: |
-          echo "Notifying stakeholders..."
-          # Replace with actual notification command, e.g., sending messages via Slack, email, etc.
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "Notifying production stakeholders..."
+            # Replace with production notification command
+          else
+            echo "Notifying staging stakeholders..."
+            # Replace with staging notification command
+          fi
+
+  failure_notification:
+    runs-on: ubuntu-latest
+    if: failure()
+    steps:
+      - name: Notify failure
+        run: |
+          echo "Sending failure notification..."
+          # Replace with actual failure notification command
