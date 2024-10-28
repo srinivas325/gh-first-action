@@ -1,0 +1,215 @@
+name: Multiple Env Workflow
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        required: false
+        default: '18.19'
+      synth-command:
+        type: string
+        required: false
+        default: npx cdk synth --ci
+      synth-artifacts-name:
+        type: string
+        required: false
+        default: cloudformation
+      deploy-environments:
+        type: string
+        required: false
+        default: |
+          dev: 
+            environment: aws-wse-partner-dev
+            synth-dir: cdk.out
+            deploy-args: ''
+          itg: 
+            environment: aws-wse-partner-itg
+            synth-dir: cdk.out
+            deploy-args: ''
+          cat: 
+            environment: aws-wse-partner-cat
+            synth-dir: cdk.out
+            deploy-args: ''
+          prod: 
+            environment: aws-wse-partner-prod
+            synth-dir: cdk.out
+            deploy-args: ''
+      aws-region:
+        type: string
+        required: false
+        default: us-east-1
+      continue-on-scan-error:
+        type: boolean
+        required: false
+        default: true
+      runs-on:
+        type: string
+        required: false
+        default: gth-arc-private-gp
+      cft-check-command:
+        type: string
+        required: false
+        default: npx --yes aws-cft-check@latest > cdk.out.cftcheck
+      synth-artifacts:
+        type: string
+        required: false
+        default: |
+          **/cdk.out
+          **/cdk.out.cftcheck
+
+    outputs:
+      version:
+        description: The semantic version of the project
+        value: ${{ jobs.version.outputs.version }}
+      node-version:
+        description: The Node.js version used to build the project
+        value: ${{ jobs.build.outputs.node-version }}
+
+jobs:
+
+  version:
+    name: Semantic Version
+    uses: test/cicd-workflows/.github/workflows/version.yml@v2
+
+  build:
+    name: Build
+    needs:
+      - version
+    uses: test/cicd-workflows/.github/workflows/build-nodejs.yml@v2
+    secrets: inherit
+    with:
+      node-version: ${{ inputs.node-version }}
+      runs-on: ${{ inputs.runs-on }}
+
+  synth:
+    name: Synth
+    needs:
+      - build
+    uses: test/cicd-workflows/.github/workflows/build-cdk-synth.yml@v2
+    secrets: inherit
+    with:
+      node-version: ${{ needs.build.outputs.node-version }}
+      build-artifacts-name: ${{ needs.build.outputs.build-artifacts-name }}
+      cache: ${{ needs.build.outputs.cache }}
+      runs-on: ${{ inputs.runs-on }}
+      synth-command: ${{ inputs.synth-command }}
+      synth-artifacts-name: ${{ inputs.synth-artifacts-name }}
+      cft-check-command: ${{ inputs.cft-check-command }}
+      synth-artifacts: ${{ inputs.synth-artifacts }}
+
+  scan:
+    name: Static Analysis
+    needs:
+      - version
+      - build
+      - synth
+    uses: test/cicd-workflows/.github/workflows/template-scan-cli.yml@v2
+    secrets: inherit
+    with:
+      project-version: ${{ needs.version.outputs.version }}
+      node-version: ${{ needs.build.outputs.node-version }}
+      runs-on: ${{ inputs.runs-on }}
+      build-artifacts-name: ${{ needs.build.outputs.build-artifacts-name }}
+      continue-on-error: ${{ inputs.continue-on-scan-error }}
+
+  publish-nodejs-snapshot:
+    name: Publish Node.js Snapshot
+    needs:
+      - version
+      - build
+      - synth
+      - scan
+    uses: test/cicd-workflows/.github/workflows/publish-nodejs.yml@v2
+    secrets: inherit
+    with:
+      version: ${{ needs.version.outputs.snapshot-version }}
+      node-version: ${{ needs.build.outputs.node-version }}
+      build-artifacts-name: ${{ needs.build.outputs.build-artifacts-name }}
+      cache: ${{ needs.build.outputs.cache }}
+      runs-on: ${{ inputs.runs-on }}
+
+  publish-cdk-snapshot:
+    name: Publish CDK Snapshot
+    needs:
+      - version
+      - build
+      - synth
+      - scan
+    uses: test/cicd-workflows/.github/workflows/publish-cdk.yml@v2
+    secrets: inherit
+    with:
+      version: ${{ needs.version.outputs.snapshot-version }}
+      synth-artifacts-name: ${{ inputs.synth.artifacts-name }}
+      runs-on: ${{ inputs.runs-on }}
+
+  deploy:
+    name: Deploy
+    needs:
+      - build
+      - publish-cdk-snapshot
+      - publish-nodejs-snapshot
+    uses: test/cicd-workflows/.github/workflows/deploy-cdk.yml@v2
+    secrets: inherit
+    with:
+      environment: ${{ inputs.deploy-environments.dev.environment }}
+      region: ${{ inputs.aws-region }}
+      node-version: ${{ needs.build.outputs.node-version }}
+      deploy-args: "${{ inputs.deploy-environments.dev.deploy-args }}"
+      runs-on: ${{ inputs.runs-on }}
+      synth-dir: ${{ inputs.deploy-environments.dev.synth-dir }}
+
+  # Repeat the deploy job for ITG, CAT, and PROD as needed, adjusting the inputs
+
+  deploy-itg:
+    if: inputs.deploy-environments.itg.environment && (startsWith(github.ref_name,'feature') || startsWith(github.ref_name,'release') || startsWith(github.ref_name,'main'))
+    name: ITG Deploy
+    needs: 
+      - build
+      - publish-cdk-snapshot
+      - publish-nodejs-snapshot
+    uses: test/cicd-workflows/.github/workflows/deploy-cdk.yml@v2
+    secrets: inherit
+    with:
+      environment: ${{ inputs.deploy-environments.itg.environment }}
+      region: ${{ inputs.aws-region }}
+      node-version: ${{ needs.build.outputs.node-version }}
+      deploy-args: "${{ inputs.deploy-environments.itg.deploy-args }}"
+      runs-on: ${{ inputs.runs-on }}
+      synth-dir: ${{ inputs.deploy-environments.itg.synth-dir }}
+
+  deploy-cat:
+    if: inputs.deploy-environments.cat.environment && (startsWith(github.ref_name,'release') || startsWith(github.ref_name,'main'))
+    name: CAT Deploy
+    needs: 
+      - build
+      - github-prerelease
+      - deploy-itg
+      - scan
+    uses: test/cicd-workflows/.github/workflows/deploy-cdk.yml@v2
+    secrets: inherit
+    with:
+      environment: ${{ inputs.deploy-environments.cat.environment }}
+      region: ${{ inputs.aws-region }}
+      node-version: ${{ needs.build.outputs.node-version }}
+      deploy-args: "${{ inputs.deploy-environments.cat.deploy-args }}"
+      runs-on: ${{ inputs.runs-on }}
+      synth-dir: ${{ inputs.deploy-environments.cat.synth-dir }}
+
+  deploy-prod:
+    if: inputs.deploy-environments.prod.environment && startsWith(github.ref_name,'main')
+    name: Production Deploy
+    needs: 
+      - build
+      - github-release
+      - scan
+    uses: test/cicd-workflows/.github/workflows/deploy-cdk.yml@v2
+    secrets: inherit
+    with:
+      environment: ${{ inputs.deploy-environments.prod.environment }}
+      region: ${{ inputs.aws-region }}
+      node-version: ${{ needs.build.outputs.node-version }}
+      deploy-args: "${{ inputs.deploy-environments.prod.deploy-args }}"
+      runs-on: ${{ inputs.runs-on }}
+      synth-dir: ${{ inputs.deploy-environments.prod.synth-dir }}
+
+  # Additional jobs for publishing, promoting, and releasing can follow a similar pattern.
