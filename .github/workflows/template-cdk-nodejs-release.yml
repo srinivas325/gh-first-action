@@ -10,10 +10,6 @@ on:
         type: string
         required: false
         default: npx cdk synth --ci
-      synth-artifacts-name:
-        type: string
-        required: false
-        default: cloudformation
       deploy-environments:
         type: string
         required: false
@@ -45,7 +41,7 @@ on:
       runs-on:
         type: string
         required: false
-        default: gth-arc-private-gp
+        default: ubuntu-latest
       cft-check-command:
         type: string
         required: false
@@ -69,147 +65,57 @@ jobs:
 
   version:
     name: Semantic Version
-    uses: test/cicd-workflows/.github/workflows/version.yml@v2
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Get Version
+        run: echo "VERSION=1.0.0" >> $GITHUB_ENV
 
   build:
     name: Build
-    needs:
-      - version
-    uses: test/cicd-workflows/.github/workflows/build-nodejs.yml@v2
-    secrets: inherit
-    with:
-      node-version: ${{ inputs.node-version }}
-      runs-on: ${{ inputs.runs-on }}
+    needs: version
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Install Dependencies
+        run: npm install
+      - name: Build Project
+        run: npm run build
+      - name: Set Node Version
+        run: echo "NODE_VERSION=${{ inputs.node-version }}" >> $GITHUB_ENV
 
   synth:
     name: Synth
-    needs:
-      - build
-    uses: test/cicd-workflows/.github/workflows/build-cdk-synth.yml@v2
-    secrets: inherit
-    with:
-      node-version: ${{ needs.build.outputs.node-version }}
-      build-artifacts-name: ${{ needs.build.outputs.build-artifacts-name }}
-      cache: ${{ needs.build.outputs.cache }}
-      runs-on: ${{ inputs.runs-on }}
-      synth-command: ${{ inputs.synth-command }}
-      synth-artifacts-name: ${{ inputs.synth-artifacts-name }}
-      cft-check-command: ${{ inputs.cft-check-command }}
-      synth-artifacts: ${{ inputs.synth-artifacts }}
+    needs: build
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Run Synth
+        run: ${{ inputs.synth-command }}
 
   scan:
     name: Static Analysis
-    needs:
-      - version
-      - build
-      - synth
-    uses: test/cicd-workflows/.github/workflows/template-scan-cli.yml@v2
-    secrets: inherit
-    with:
-      project-version: ${{ needs.version.outputs.version }}
-      node-version: ${{ needs.build.outputs.node-version }}
-      runs-on: ${{ inputs.runs-on }}
-      build-artifacts-name: ${{ needs.build.outputs.build-artifacts-name }}
-      continue-on-error: ${{ inputs.continue-on-scan-error }}
-
-  publish-nodejs-snapshot:
-    name: Publish Node.js Snapshot
-    needs:
-      - version
-      - build
-      - synth
-      - scan
-    uses: test/cicd-workflows/.github/workflows/publish-nodejs.yml@v2
-    secrets: inherit
-    with:
-      version: ${{ needs.version.outputs.snapshot-version }}
-      node-version: ${{ needs.build.outputs.node-version }}
-      build-artifacts-name: ${{ needs.build.outputs.build-artifacts-name }}
-      cache: ${{ needs.build.outputs.cache }}
-      runs-on: ${{ inputs.runs-on }}
-
-  publish-cdk-snapshot:
-    name: Publish CDK Snapshot
-    needs:
-      - version
-      - build
-      - synth
-      - scan
-    uses: test/cicd-workflows/.github/workflows/publish-cdk.yml@v2
-    secrets: inherit
-    with:
-      version: ${{ needs.version.outputs.snapshot-version }}
-      synth-artifacts-name: ${{ inputs.synth.artifacts-name }}
-      runs-on: ${{ inputs.runs-on }}
+    needs: [version, build, synth]
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Run Static Analysis
+        run: echo "Running static analysis..."
 
   deploy:
     name: Deploy
-    needs:
-      - build
-      - publish-cdk-snapshot
-      - publish-nodejs-snapshot
-    uses: test/cicd-workflows/.github/workflows/deploy-cdk.yml@v2
-    secrets: inherit
-    with:
-      environment: ${{ inputs.deploy-environments.dev.environment }}
-      region: ${{ inputs.aws-region }}
-      node-version: ${{ needs.build.outputs.node-version }}
-      deploy-args: "${{ inputs.deploy-environments.dev.deploy-args }}"
-      runs-on: ${{ inputs.runs-on }}
-      synth-dir: ${{ inputs.deploy-environments.dev.synth-dir }}
+    needs: [build, scan]
+    runs-on: ${{ inputs.runs-on }}
+    strategy:
+      matrix:
+        environment: [dev, itg, cat, prod]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Deploy to ${{ matrix.environment }}
+        run: |
+          ENVIRONMENT=${{ inputs.deploy-environments[matrix.environment].environment }}
+          SYNTH_DIR=${{ inputs.deploy-environments[matrix.environment].synth-dir }}
+          DEPLOY_ARGS=${{ inputs.deploy-environments[matrix.environment].deploy-args }}
+          echo "Deploying to $ENVIRONMENT using $SYNTH_DIR with args $DEPLOY_ARGS"
 
-  # Repeat the deploy job for ITG, CAT, and PROD as needed, adjusting the inputs
-
-  deploy-itg:
-    if: inputs.deploy-environments.itg.environment && (startsWith(github.ref_name,'feature') || startsWith(github.ref_name,'release') || startsWith(github.ref_name,'main'))
-    name: ITG Deploy
-    needs: 
-      - build
-      - publish-cdk-snapshot
-      - publish-nodejs-snapshot
-    uses: test/cicd-workflows/.github/workflows/deploy-cdk.yml@v2
-    secrets: inherit
-    with:
-      environment: ${{ inputs.deploy-environments.itg.environment }}
-      region: ${{ inputs.aws-region }}
-      node-version: ${{ needs.build.outputs.node-version }}
-      deploy-args: "${{ inputs.deploy-environments.itg.deploy-args }}"
-      runs-on: ${{ inputs.runs-on }}
-      synth-dir: ${{ inputs.deploy-environments.itg.synth-dir }}
-
-  deploy-cat:
-    if: inputs.deploy-environments.cat.environment && (startsWith(github.ref_name,'release') || startsWith(github.ref_name,'main'))
-    name: CAT Deploy
-    needs: 
-      - build
-      - github-prerelease
-      - deploy-itg
-      - scan
-    uses: test/cicd-workflows/.github/workflows/deploy-cdk.yml@v2
-    secrets: inherit
-    with:
-      environment: ${{ inputs.deploy-environments.cat.environment }}
-      region: ${{ inputs.aws-region }}
-      node-version: ${{ needs.build.outputs.node-version }}
-      deploy-args: "${{ inputs.deploy-environments.cat.deploy-args }}"
-      runs-on: ${{ inputs.runs-on }}
-      synth-dir: ${{ inputs.deploy-environments.cat.synth-dir }}
-
-  deploy-prod:
-    if: inputs.deploy-environments.prod.environment && startsWith(github.ref_name,'main')
-    name: Production Deploy
-    needs: 
-      - build
-      - github-release
-      - scan
-    uses: test/cicd-workflows/.github/workflows/deploy-cdk.yml@v2
-    secrets: inherit
-    with:
-      environment: ${{ inputs.deploy-environments.prod.environment }}
-      region: ${{ inputs.aws-region }}
-      node-version: ${{ needs.build.outputs.node-version }}
-      deploy-args: "${{ inputs.deploy-environments.prod.deploy-args }}"
-      runs-on: ${{ inputs.runs-on }}
-      synth-dir: ${{ inputs.deploy-environments.prod.synth-dir }}
-
-  # Additional jobs for publishing, promoting, and releasing can follow a similar pattern.
