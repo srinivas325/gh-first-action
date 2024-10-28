@@ -1,0 +1,51 @@
+name: Deploy Pipeline
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - '**/*'
+    tags:
+      - 'v*'
+
+jobs:
+  cicd:
+    uses: ./.github/workflows/template-cdk-nodejs-release.yml
+    secrets: inherit
+    with:
+      deploy-environments: |
+        dev: 
+          environment: aws-wse-partner-dev
+          synth-dir: aws-gth-dev.out
+          cft-check: aws-gth-dev.out.cftcheck
+          synth-command: npx cdk synth -o aws-gth-dev.out -c config=dev
+        itg: 
+          environment: aws-wse-partner-itg
+          synth-dir: aws-gth-itg.out
+          cft-check: aws-gth-itg.out.cftcheck
+          synth-command: npx cdk synth -o aws-gth-itg.out -c config=itg
+        # cat: 
+        #   environment: aws-wse-partner-cat
+        #   synth-dir: aws-gth-cat.out
+        #   cft-check: aws-gth-cat.out.cftcheck
+        #   synth-command: npx cdk synth -o aws-gth-cat.out -c config=cat
+        # prod: 
+        #   environment: aws-wse-partner-prod
+        #   synth-dir: aws-gth-prod.out
+        #   cft-check: aws-gth-prod.out.cftcheck
+        #   synth-command: npx cdk synth -o aws-gth-prod.out -c config=prod
+
+      cft-check-command: |
+        npx --yes aws-cft-check@latest --cftOutputDir ./aws-gth-dev.out > ${{ inputs.deploy-environments.dev.cft-check }}
+        npx --yes aws-cft-check@latest --cftOutputDir ./aws-gth-itg.out > ${{ inputs.deploy-environments.itg.cft-check }}
+        # npx --yes aws-cft-check@latest --cftOutputDir ./aws-gth-cat.out > ${{ inputs.deploy-environments.cat.cft-check }}
+        # npx --yes aws-cft-check@latest --cftOutputDir ./aws-gth-prod.out > ${{ inputs.deploy-environments.prod.cft-check }}
+
+      synth-artifacts: |
+        **/${{ inputs.deploy-environments.dev.synth-dir }}
+        **/${{ inputs.deploy-environments.dev.cft-check }}
+        **/${{ inputs.deploy-environments.itg.synth-dir }}
+        **/${{ inputs.deploy-environments.itg.cft-check }}
+        # **/${{ inputs.deploy-environments.cat.synth-dir }}
+        # **/${{ inputs.deploy-environments.cat.cft-check }}
+        # **/${{ inputs.deploy-environments.prod.synth-dir }}
+        # **/${{ inputs.deploy-environments.prod.cft-check }}
