@@ -1,11 +1,14 @@
 name: Deploy Pipeline
 on:
   workflow_dispatch:
-  push:
     branches:
-      - '**/*'
-    tags:
-      - 'v*'
+      - develop/*
+      - feature/*
+  # push:
+  #   branches:
+  #     - '**/*'
+  #   tags:
+  #     - 'v*'
 
 jobs:
   cicd:
