@@ -1,9 +1,6 @@
 name: Deploy Pipeline
 on:
   workflow_dispatch:
-    branches:
-      - develop/*
-      - feature/*
   # push:
   #   branches:
   #     - '**/*'
